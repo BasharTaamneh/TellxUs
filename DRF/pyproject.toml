@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "drf"
+version = "0.1.0"
+description = ""
+authors = ["bashar adel taamneh <bashartaamneh55@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+black = "^21.12b0"
+flake8 = "^4.0.1"
+Django = "^4.0"
+djangorestframework = "^3.13.1"
+django-cors-headers = "^3.10.1"
+
+[tool.poetry.dev-dependencies]
+black = {version = "^21.12b0", allow-prereleases = true}
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
