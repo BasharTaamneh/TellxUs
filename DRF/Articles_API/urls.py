@@ -1,29 +1,68 @@
 from django.urls import path
 from .views import (
-    ArticleGetView,
-    ArticleSearchView,
     ArticlePostView,
-    ArticleUpdateView,
-    ArticleDeleteView,
-    LikesView
+    ArticleDetail,
+    ArticleFilesPostView,
+    ArticleSearchView,
+    ArticlesLikes,
+    ArticlesDisLikes,
+    ArticlesAnger,
+    ArticlesLove,
+    ArticleCommentsPostView,
+    ArticleCommentsDetailView,
+    CommentsReplyPostView,
+    CommentsLikes,
+    CommentsDisLikes,
+    NotificationGeter,
+    NotificationHandler,
 )
 
 urlpatterns = [
+    path("ArticlePostView/", ArticlePostView.as_view(), name="ArticlePostView"),
+    path("ArticleDetail/<int:pk>/", ArticleDetail.as_view(), name="ArticleDetail"),
     path(
-        "AddArticlse/", ArticlePostView.as_view(), name="AddArticlse"
-    ),  # add new article (POST) return it's json data
+        "ArticleFilesPostView/",
+        ArticleFilesPostView.as_view(),
+        name="ArticleFilesPostView",
+    ),
+    path("ArticleSearchView/", ArticleSearchView.as_view(), name="ArticleSearchView"),
+    path("ArticlesLikes/<int:pk>/", ArticlesLikes.as_view(), name="ArticlesLikes"),
     path(
-        "json_Articles/", ArticleGetView.as_view(), name="json_Articles"
-    ),  # view all articles in json format (GET)
+        "ArticlesDisLikes/<int:pk>/",
+        ArticlesDisLikes.as_view(),
+        name="ArticlesDisLikes",
+    ),
+    path("ArticlesLove/<int:pk>/", ArticlesLove.as_view(), name="ArticlesLove"),
+    path("ArticlesAnger/<int:pk>/", ArticlesAnger.as_view(), name="ArticlesAnger"),
     path(
-        "ArticlesSearch/", ArticleSearchView.as_view(), name="ArticlesSearch"
-    ),  # search for articles py title (GET)
+        "ArticleCommentsPostView/<int:pk>/",
+        ArticleCommentsPostView.as_view(),
+        name="ArticleCommentsPostView",
+    ),
     path(
-        "ArticlesUpdate/", ArticleUpdateView.as_view(), name="ArticlesUpdate"
-    ),  # update article (PUT)
+        "ArticleCommentsDetailView/<int:pk>/",
+        ArticleCommentsDetailView.as_view(),
+        name="ArticleCommentsDetailView",
+    ),
     path(
-        "ArticlesDelete/", ArticleDeleteView.as_view(), name="ArticlesDelete"
-    ),  # delete article (DELETE)
-    path("ArticlesLikes/", LikesView.as_view(), name="ArticlesLikes"),
-    # create & update & get articles likes (POST, GET, PUt)
+        "CommentsReplyPostView/<int:pk>/",
+        CommentsReplyPostView.as_view(),
+        name="CommentsReplyPostView",
+    ),
+    path("CommentsLikes/<int:pk>/", CommentsLikes.as_view(), name="CommentsLikes"),
+    path(
+        "CommentsDisLikes/<int:pk>/",
+        CommentsDisLikes.as_view(),
+        name="CommentsDisLikes",
+    ),
+    path(
+        "NotificationGeter/",
+        NotificationGeter.as_view(),
+        name="NotificationGeter",
+    ),
+    path(
+        "NotificationHandler/<int:pk>/",
+        NotificationHandler.as_view(),
+        name="NotificationHandler",
+    ),
 ]

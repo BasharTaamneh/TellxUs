@@ -1,35 +1,26 @@
 from rest_framework import serializers
-
-from .models import Article, Likes, Comments
+from .models import Article, ArticleFiles, ArticleComments, Notification
 
 
 class ArticleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Article
-        fields = [
-            "id",
-            "owner",
-            "title",
-            "description",
-            "files",
-            "created_at",
-            "updated_at",
-        ]
+        fields = "__all__"
 
 
-class ArticleUpdateSerializer(serializers.ModelSerializer):
+class ArticleFilesSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Article
-        fields = ["title", "description", "files", "created_at", "updated_at"]
+        model = ArticleFiles
+        fields = "__all__"
 
 
-class LikesSerializer(serializers.ModelSerializer):
+class ArticleCommentsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Likes
-        fields = ["id", "likes", "deslikes"]
+        model = ArticleComments
+        fields = "__all__"
 
 
-class CommentsSerializer(serializers.ModelSerializer):
+class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Comments
-        fields = ["id", "comments", "created_at"]
+        model = Notification
+        fields = "__all__"

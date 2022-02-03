@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 
 import os
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,7 +27,7 @@ SECRET_KEY = "django-insecure-!!r2t+r-geez$cov0cerlg#o!dja5-5!e@-p%&nvgn%$cc%%qz
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1"]
 
 
 # Application definition
@@ -40,6 +41,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "Articles_API",
     "accounts",
 ]
@@ -74,7 +77,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "Articles.wsgi.application"
-
+# ASGI_APPLICATION = "Articles.asgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
@@ -125,7 +128,7 @@ USE_TZ = True
 
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_URL = "/static/"
-
+# STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
@@ -138,14 +141,32 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
 
-X_FRAME_OPTIONS = "ALLOWALL"
+
+X_FRAME_OPTIONS = "SAMEORIGIN"
+
+AUTH_USER_MODEL = "accounts.UserModel"
+
 
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
+    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
     ],
 }
-
+SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(seconds=60 * 60 * 23)}
 
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
+
+
+PASSWORD_HASHERS = (
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.BCryptPasswordHasher",
+    "django.contrib.auth.hashers.SHA1PasswordHasher",
+    "django.contrib.auth.hashers.MD5PasswordHasher",
+    "django.contrib.auth.hashers.CryptPasswordHasher",
+)
