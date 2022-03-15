@@ -19,8 +19,8 @@ class UserModel(AbstractUser):
     password = models.CharField(max_length=255)
     birth_date = models.DateField(blank=True, null=True)
     gender = models.CharField(null=True, max_length=255, choices=GENDERS)
-    city = models.CharField(max_length=255, default="Jordan")
-    about_me = models.TextField(blank=True, null=True)
+    city = models.CharField(max_length=255, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
     date_joined = models.DateTimeField(auto_now_add=True)
     last_login = models.DateTimeField(auto_now=True)
     follows = models.ManyToManyField(
@@ -43,7 +43,7 @@ class UserPicturesModel(models.Model):
         UserModel, on_delete=models.CASCADE, null=True, blank=False
     )
     profile_photo = models.ImageField(
-        default="/static/blank_profile_image.png",
+        default="static/blank_profile_image.png",
         blank=True,
         null=True,
         upload_to=upload_path,

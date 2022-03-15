@@ -1,4 +1,4 @@
-import shutil, os, smtplib, random, re
+import shutil, os, random, re, requests
 from django.http import JsonResponse, response
 from django.core.files.storage import FileSystemStorage
 from django.db.models import Q
@@ -6,10 +6,12 @@ from django.contrib.auth.hashers import check_password, make_password
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework import status
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
 
 from Articles_API.models import Notification
 
-from .models import UserModel, UserPicturesModel#, MessageModel, ThreadModel
+from .models import UserModel, UserPicturesModel  # , MessageModel, ThreadModel
 
 from .serializers import (
     UserModelSerializer,
@@ -47,7 +49,7 @@ class UserModelPostView(ListCreateAPIView):
                     {
                         "username": "This field may not be blank.",
                     },
-                    status=status.HTTP_424_FAILED_DEPENDENCY,
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             try:
@@ -65,7 +67,7 @@ class UserModelPostView(ListCreateAPIView):
                     {
                         "email": "This field may not be blank.",
                     },
-                    status=status.HTTP_424_FAILED_DEPENDENCY,
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
                 password = request.data["password"]
@@ -82,70 +84,52 @@ class UserModelPostView(ListCreateAPIView):
                     {
                         "password": "This field may not be blank.",
                     },
-                    status=status.HTTP_424_FAILED_DEPENDENCY,
-                )
-
-            try:
-                gender = request.data["gender"]
-            except:
-                return JsonResponse(
-                    {
-                        "gender": "this feild is requierd",
-                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-            try:
-                city = request.data["city"]
-            except:
-                return JsonResponse(
-                    {
-                        "city": "this feild is requierd",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            try:
-                birth_date = request.data["birth_date"]
-            except:
-                return JsonResponse(
-                    {
-                        "birth_date": "this feild is requierd",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            try:
-                about_me = request.data["about_me"]
-            except:
-                return JsonResponse(
-                    {
-                        "about_me": "this feild is requierd",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            try:
-                profile_photo = request.data["profile_photo"]
-            except:
-                return JsonResponse(
-                    {
-                        "profile_photo": "this feild is requierd",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if not len(profile_photo):
-                profile_photo = "/static/blank_profile_image.png"
-
             data = {
                 "username": username,
                 "email": email,
                 "password": password,
-                "gender": gender,
-                "city": city,
-                "birth_date": birth_date,
-                "about_me": about_me,
             }
+
+            try:
+                gender = request.data["gender"]
+            except:
+                gender = False
+
+            try:
+                city = request.data["city"]
+            except:
+                city = False
+
+            try:
+                birth_date = request.data["birth_date"]
+            except:
+                birth_date = False
+
+            try:
+                bio = request.data["bio"]
+            except:
+                bio = False
+
+            if bio:
+                data["bio"] = bio
+
+            if birth_date:
+                data["birth_date"] = birth_date
+
+            if gender:
+                data["gender"] = gender
+
+            if city:
+                data["city"] = city
+
+            try:
+                profile_photo = request.data["profile_photo"]
+                if not len(profile_photo):
+                    profile_photo = "/static/blank_profile_image.png"
+            except:
+                profile_photo = "/static/blank_profile_image.png"
 
             serializer = UserModelSerializer(data=data)
             if serializer.is_valid():
@@ -168,11 +152,29 @@ class UserModelDetail(RetrieveUpdateDestroyAPIView):
     queryset = UserModel.objects.all()
     serializer_class = UserModelSerializer
 
-    def update(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
+        if request.method == "GET":
+            if request.user.is_anonymous:
+                return JsonResponse(
+                    {"detail": "UNAUTHORIZED"}, status=status.HTTP_401_UNAUTHORIZED
+                )
+            partial = request.user.id
+            print(request.user)
+            user = UserModel.objects.get(pk=partial)
+            serializer = UserModelSerializer(user)
+            if serializer:
+                return JsonResponse(serializer.data, status=status.HTTP_202_ACCEPTED)
+            return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def update(self, request, *args, **kwargs):
+        if request.method == "PATCH":
+            return JsonResponse(
+                {"detail": '"PATCH" requests not allowed.'},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED,
+            )
         if request.method == "PUT":
 
-            partial = kwargs.pop("pk")
+            partial = request.user.id
 
             try:
                 current_password = request.data["current_password"]
@@ -201,121 +203,79 @@ class UserModelDetail(RetrieveUpdateDestroyAPIView):
 
                 try:
                     username = request.data["username"]
+                    if username:
+                        try:
+                            user.update(username=username)
+                        except:
+                            return JsonResponse(
+                                {
+                                    "username": "user with this username already exists.",
+                                },
+                                status=status.HTTP_406_NOT_ACCEPTABLE,
+                            )
                 except:
-                    return JsonResponse(
-                        {
-                            "username": "this feild is requierd",
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                if username:
-                    try:
-                        user.update(username=username)
-                    except:
-                        return JsonResponse(
-                            {
-                                "username": "user with this username already exists.",
-                            },
-                            status=status.HTTP_406_NOT_ACCEPTABLE,
-                        )
+                    pass
 
                 try:
                     email = request.data["email"]
+                    if email:
+
+                        regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+                        if not (re.fullmatch(regex, email)):
+                            return JsonResponse(
+                                {
+                                    "email": "please enter a valid email format.",
+                                },
+                                status=status.HTTP_406_NOT_ACCEPTABLE,
+                            )
+
+                        try:
+                            user.update(email=email)
+                        except:
+                            return JsonResponse(
+                                {
+                                    "email": "user with this email already exists.",
+                                },
+                                status=status.HTTP_406_NOT_ACCEPTABLE,
+                            )
                 except:
-                    return JsonResponse(
-                        {
-                            "email": "this feild is requierd",
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                if email:
-
-                    regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
-                    if not (re.fullmatch(regex, email)):
-                        return JsonResponse(
-                            {
-                                "email": "please enter a valid email address.",
-                            },
-                            status=status.HTTP_406_NOT_ACCEPTABLE,
-                        )
-
-                    try:
-                        user.update(email=email)
-                    except:
-                        return JsonResponse(
-                            {
-                                "email": "user with this email already exists.",
-                            },
-                            status=status.HTTP_406_NOT_ACCEPTABLE,
-                        )
+                    pass
 
                 try:
                     password = request.data["password"]
+                    if password:
+                        new_password = make_password(password)
+                        user.update(password=new_password)
                 except:
-                    return JsonResponse(
-                        {
-                            "password": "this feild is requierd",
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                if password:
-                    new_password = make_password(password)
-                    user.update(password=new_password)
+                    pass
 
                 try:
                     gender = request.data["gender"]
+                    if gender:
+                        user.update(gender=gender)
                 except:
-                    return JsonResponse(
-                        {
-                            "gender": "this feild is requierd",
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                if gender:
-                    user.update(gender=gender)
+                    pass
 
                 try:
                     city = request.data["city"]
+                    if city:
+                        user.update(city=city)
                 except:
-                    return JsonResponse(
-                        {
-                            "city": "this feild is requierd",
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                if city:
-                    user.update(city=city)
+                    pass
 
                 try:
                     birth_date = request.data["birth_date"]
+                    if birth_date:
+                        user.update(birth_date=birth_date)
                 except:
-                    return JsonResponse(
-                        {
-                            "birth_date": "this feild is requierd",
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                if birth_date:
-                    user.update(birth_date=birth_date)
+                    pass
 
                 try:
-                    about_me = request.data["about_me"]
+                    bio = request.data["bio"]
+                    if bio:
+                        user.update(bio=bio)
                 except:
-                    return JsonResponse(
-                        {
-                            "about_me": "this feild is requierd",
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                if about_me:
-                    user.update(about_me=about_me)
+                    pass
 
                 serializer = UserModelSerializer(user, many=True)
                 if serializer:
@@ -335,7 +295,7 @@ class UserModelDetail(RetrieveUpdateDestroyAPIView):
 
     def delete(self, request, *args, **kwargs):
         if request.method == "DELETE":
-            partial = kwargs.pop("pk")
+            partial = request.user.id
             try:
                 current_password = request.data["current_password"]
             except:
@@ -392,6 +352,13 @@ class UserPicturesPostView(ListCreateAPIView):
     queryset = UserPicturesModel.objects.all()
     serializer_class = UserPicturesSerializer
 
+    def get(self, request, *args, **kwargs):
+        if request.method == "GET":
+            return JsonResponse(
+                {"detail": 'Method "GET" not allowed.'},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED,
+            )
+
     def create(self, request, *args, **kwargs):
 
         if request.method == "POST":
@@ -430,6 +397,22 @@ class UserPicturesDetailView(RetrieveUpdateDestroyAPIView):
     queryset = UserPicturesModel.objects.all()
     serializer_class = UserPicturesSerializer
 
+    def get(self, request, *args, **kwargs):
+        if request.method == "GET":
+            partial = kwargs.pop("pk")
+            Pictures = UserPicturesModel.objects.all().filter(user_id=partial)
+            if len(Pictures):
+                serializer = UserPicturesSerializer(Pictures, many=True)
+                return JsonResponse(
+                    data=serializer.data,
+                    safe=False,
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return JsonResponse(
+                    {"detail": "NO_CONTENT"}, status=status.HTTP_204_NO_CONTENT
+                )
+
     def update(self, request, *args, **kwargs):
         if request.method == "PUT" or request.method == "PATCH":
             return JsonResponse(
@@ -440,22 +423,41 @@ class UserPicturesDetailView(RetrieveUpdateDestroyAPIView):
     def delete(self, request, *args, **kwargs):
         if request.method == "DELETE":
             partial = kwargs.pop("pk")
-
-            Picture = UserPicturesModel.objects.filter(id=partial)
-            if len(Picture):
-                path = str(
-                    UserPicturesModel.objects.all().get(id=partial).profile_photo
+            user_Pictures = UserPicturesModel.objects.filter(user_id=request.user.id)
+            if len(user_Pictures) == 1:
+                Picture = UserPicturesModel.objects.filter(id=partial)
+                if len(Picture):
+                    path = str(
+                        UserPicturesModel.objects.all().get(id=partial).profile_photo
+                    )
+                    if path == "/static/blank_profile_image.png":
+                        Picture.delete()
+                    else:
+                        fs = FileSystemStorage()
+                        fs.delete(path)
+                        Picture.delete()
+                    photo = UserPicturesModel.objects.create(user_id=request.user)
+                    photo.save()
+                    return response.HttpResponse(status=status.HTTP_204_NO_CONTENT)
+                return JsonResponse(
+                    {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
                 )
-                if path == "/static/blank_profile_image.png":
-                    Picture.delete()
-                else:
-                    fs = FileSystemStorage()
-                    fs.delete(path)
-                    Picture.delete()
-                return response.HttpResponse(status=status.HTTP_204_NO_CONTENT)
-            return JsonResponse(
-                {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            else:
+                Picture = UserPicturesModel.objects.filter(id=partial)
+                if len(Picture):
+                    path = str(
+                        UserPicturesModel.objects.all().get(id=partial).profile_photo
+                    )
+                    if path == "/static/blank_profile_image.png":
+                        Picture.delete()
+                    else:
+                        fs = FileSystemStorage()
+                        fs.delete(path)
+                        Picture.delete()
+                    return response.HttpResponse(status=status.HTTP_204_NO_CONTENT)
+                return JsonResponse(
+                    {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
+                )
 
 
 # //////////////////////////////////////////////////////////////////#
@@ -544,6 +546,80 @@ class UserFollower(APIView):
 
 
 # //////////////////////////////////////////////////////////////////#
+class GetUserFollowers(APIView):
+    def get(self, request, *args, **kwargs):
+        if request.method == "GET":
+            if request.user.is_anonymous:
+                return JsonResponse(
+                    {"detail": "UNAUTHORIZED"}, status=status.HTTP_401_UNAUTHORIZED
+                )
+            else:
+                user_followers = []
+                user_id = request.user.id
+                main_user = UserModel.objects.get(pk=user_id)
+                if len(main_user.followers.all()):
+                    for user in main_user.followers.all():
+                        user = UserModel.objects.get(pk=user)
+                        user_pic = "/media/" + str(
+                            UserPicturesModel.objects.all()
+                            .filter(user_id=user)
+                            .last()
+                            .profile_photo
+                        )
+                        user_followers.append(
+                            {
+                                "id": user.id,
+                                "username": user.username,
+                                "user_pic": user_pic,
+                            }
+                        )
+                    return JsonResponse(
+                        user_followers, safe=False, status=status.HTTP_200_OK
+                    )
+                else:
+                    return JsonResponse(
+                        user_followers, safe=False, status=status.HTTP_204_NO_CONTENT
+                    )
+
+
+# //////////////////////////////////////////////////////////////////#
+class GetUserFollows(APIView):
+    def get(self, request, *args, **kwargs):
+        if request.method == "GET":
+            if request.user.is_anonymous:
+                return JsonResponse(
+                    {"detail": "UNAUTHORIZED"}, status=status.HTTP_401_UNAUTHORIZED
+                )
+            else:
+                user_follows = []
+                user_id = request.user.id
+                main_user = UserModel.objects.get(pk=user_id)
+                if len(main_user.follows.all()):
+                    for user in main_user.follows.all():
+                        user = UserModel.objects.get(pk=user)
+                        user_pic = "/media/" + str(
+                            UserPicturesModel.objects.all()
+                            .filter(user_id=user)
+                            .last()
+                            .profile_photo
+                        )
+                        user_follows.append(
+                            {
+                                "id": user.id,
+                                "username": user.username,
+                                "user_pic": user_pic,
+                            }
+                        )
+                    return JsonResponse(
+                        user_follows, safe=False, status=status.HTTP_200_OK
+                    )
+                else:
+                    return JsonResponse(
+                        user_follows, safe=False, status=status.HTTP_204_NO_CONTENT
+                    )
+
+
+# //////////////////////////////////////////////////////////////////#
 class UserSetPasswordView(APIView):
     queryset = UserModel.objects.all()
     serializer_class = UserModelSerializer
@@ -572,7 +648,7 @@ class UserSetPasswordView(APIView):
             if not (re.fullmatch(regex, email)):
                 return JsonResponse(
                     {
-                        "email": "please enter a valid email address.",
+                        "email": "please enter a valid email format.",
                     },
                     status=status.HTTP_406_NOT_ACCEPTABLE,
                 )
@@ -595,20 +671,77 @@ class UserSetPasswordView(APIView):
                 )
             password_mok = "QqWwEeRrTtYyUu$&*IiOoPpAaSsDdFfG01234gHhJjKkLlZzXxCcVvBbNnMm56789!@#QqWwEeSsDdFfG012RrTtYyUu$&*IiOoPpAa34gHhJjKkLlZz!@#XxCcVvBbNnMm56789"
             set_password = "".join(random.sample(password_mok, 10))
+
             new_password = make_password(set_password)
             user.update(password=new_password)
-            server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-            server.login("tellxus.app@gmail.com", "qw1qw2qw3")
-            server.sendmail(
-                "tellxus.app@gmail.com",
+
+            subject, from_email, to = (
+                "New Password",
+                settings.EMAIL_HOST_USER,
                 f"{email}",
-                f"Hey {username}! \nThank you for using TellXUs app \nyour new password is successfully created. \nPassword: {set_password}",
             )
+            text_content = f"Hey {username}!"
+
+            html_content = f"""<div style="border-style:solid;border-width:thin;border-color:#dadce0;border-radius:8px;padding:40px 20px" align="center" class="m_-3214643286528040867mdv2rw"><img src="https://i.ibb.co/DbvpHh4/logo-text.png" width="74" height="24" aria-hidden="true" style="margin-bottom:16px" alt="TellXus" class="CToWUd"><div style="font-family:'Google Sans',Roboto,RobotoDraft,Helvetica,Arial,sans-serif;border-bottom:thin solid #dadce0;color:rgba(0,0,0,0.87);line-height:32px;padding-bottom:24px;text-align:center;word-break:break-word"><div style="font-size:24px">App password created to sign in to your account </div><table align="center" style="margin-top:8px"><tbody><tr style="line-height:normal"><td align="right" style="padding-right:8px"></td><td><a style="font-family:'Google Sans',Roboto,RobotoDraft,Helvetica,Arial,sans-serif;color:rgba(0,0,0,0.87);font-size:14px;line-height:20px"><strong>{email}</strong></a></td></tr></tbody></table> </div><div style="font-family:Roboto-Regular,Helvetica,Arial,sans-serif;font-size:14px;color:rgba(0,0,0,0.87);line-height:20px;padding-top:20px;text-align:center">If you didn't generate this password for your account, someone might be using your account. Check and secure your account now.
+            <strong>or</strong> you can reply to this email to make a ticket for your issue, the technical support will contact you asap.<div style="padding-top:32px;text-align:center"><div  style="font-family:'Google Sans',Roboto,RobotoDraft,Helvetica,Arial,sans-serif;line-height:20px;color:#303030;font-weight:500;text-decoration:none;font-size:20px;display:inline-block;padding:10px 24px; background-color:#dadada;border-radius:5px;min-width:90px" >{set_password}</div></div></div><span class="im"><div style="padding-top:20px;font-size:12px;line-height:16px;color:#5f6368;letter-spacing:0.3px;text-align:center">Thank you for using TellXus<br><a style="color:rgba(0,0,0,0.87);text-decoration:inherit" href="https://TellXus.com">TellXus.com</a></div></span></div>"""
+
+            msg = EmailMultiAlternatives(subject, text_content, from_email, [to])
+            msg.attach_alternative(html_content, "text/html")
+            msg.send()
 
             return JsonResponse(
                 {
-                    "password": f"Password was successfully reset 👍.\n we sent the new password to {email} user",
+                    "password": f"Password was successfully reset 👍. we sent the new password to {email}, please check your spam if you don't receive it in your inbox.",
                 },
+                status=status.HTTP_200_OK,
+            )
+
+
+# //////////////////////////////////////////////////////////////////#
+class EmailStatus(APIView):
+    def get(self, request, *args, **kwargs):
+        if request.method == "GET":
+            # check for required Params.
+            try:
+                to_email = request.GET["to_email"]
+            except:
+                return JsonResponse(
+                    {
+                        "to_email": "KeyError! search key ('to_email') is missing which should be in the Query Params"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # check email format.
+            regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+            if not (re.fullmatch(regex, to_email)):
+                return JsonResponse(
+                    {
+                        "detail": "Waiting for a valid email format.",
+                    },
+                    status=status.HTTP_406_NOT_ACCEPTABLE,
+                )
+            # Check if the received email is reachable and accepts mail by calling Reacher's third-party API.
+            url = "https://api.reacher.email/v0/check_email"
+            headers = {"authorization": "50dfea0a-a3f3-11ec-95af-1935d61c5545"}
+            payload = {"to_email": f"{to_email}"}
+            response = requests.post(url, json=payload, headers=headers)
+            data = response.json()
+            # check requests rate
+            if data["error"] and "Too many requests" in data["error"]:
+                error = data["error"]
+                return JsonResponse(
+                    {
+                        "detail": f"{error}",
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            is_reachable = (
+                data["is_reachable"] != "invalid" and data["is_reachable"] != "unknown"
+            )
+            accepts_mail = data["mx"]["accepts_mail"]
+            is_accepted = accepts_mail and is_reachable
+            return JsonResponse(
+                {"detail": f"{'acepted' if is_accepted else 'rejected'}"},
                 status=status.HTTP_200_OK,
             )
 
@@ -685,12 +818,12 @@ class UserSetPasswordView(APIView):
 #     queryset = ThreadModel.objects.all()
 #     serializer_class = ThreadModelSerializer
 
-#     def get(self, request, *args, **kwargs):
-#         if request.method == "GET":
-#             return JsonResponse(
-#                 {"detail": 'Method "GET" not allowed.'},
-#                 status=status.HTTP_405_METHOD_NOT_ALLOWED,
-#             )
+# def get(self, request, *args, **kwargs):
+#     if request.method == "GET":
+#         return JsonResponse(
+#             {"detail": 'Method "GET" not allowed.'},
+#             status=status.HTTP_405_METHOD_NOT_ALLOWED,
+#         )
 
 #     def update(self, request, *args, **kwargs):
 #         if request.method == "PUT" or request.method == "PATCH":
@@ -735,7 +868,7 @@ class UserSetPasswordView(APIView):
 #             )
 
 #     def post(self, request, *args, **kwargs):
-        
+
 #         partial = kwargs.pop("pk")
 #         if request.method == "POST":
 #             try:

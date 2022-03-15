@@ -170,3 +170,11 @@ PASSWORD_HASHERS = (
     "django.contrib.auth.hashers.MD5PasswordHasher",
     "django.contrib.auth.hashers.CryptPasswordHasher",
 )
+
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = "tellxus.safety@gmail.com"
+EMAIL_HOST_PASSWORD = "mintvhzhsllrwxii"
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

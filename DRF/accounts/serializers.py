@@ -15,7 +15,7 @@ class UserModelSerializer(serializers.ModelSerializer):
             "followers",
             "city",
             "email",
-            "about_me",
+            "bio",
             "password",
             "last_login",
             "date_joined",
