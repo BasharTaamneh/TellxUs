@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework import status
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
+from decouple import config
 
 from Articles_API.models import Notification
 
@@ -722,7 +723,7 @@ class EmailStatus(APIView):
                 )
             # Check if the received email is reachable and accepts mail by calling Reacher's third-party API.
             url = "https://api.reacher.email/v0/check_email"
-            headers = {"authorization": "50dfea0a-a3f3-11ec-95af-1935d61c5545"}
+            headers = {"authorization": config('REACHER_KEY')}
             payload = {"to_email": f"{to_email}"}
             response = requests.post(url, json=payload, headers=headers)
             data = response.json()
@@ -744,8 +745,42 @@ class EmailStatus(APIView):
                 {"detail": f"{'acepted' if is_accepted else 'rejected'}"},
                 status=status.HTTP_200_OK,
             )
+# //////////////////////////////////////////////////////////////////#
+# //////////////////////////////////////////////////////////////////#
+# //////////////////////////////////////////////////////////////////#
+# class Users(APIView):
+#     queryset = UserModel.objects.all()
+#     serializer_class = UserModelSerializer
+#     permission_classes = (AllowAny,)
 
+#     def get(self, request, *args, **kwargs):
+#         if request.method == "GET":
+#             try:
+#                 username = request.data["username"]
+#             except KeyError:
+#                 return JsonResponse(
+#                     {
+#                         "username": "KeyError search key ('username') is missing which should be in form-data"
+#                     },
+#                     status=status.HTTP_400_BAD_REQUEST,
+#                 )
 
+#             users = UserModel.objects.all().get(username="bashar")
+#             print(users.is_superuser)
+#             # if not len(users):
+#             #     return JsonResponse(
+#             #         {"user": f"No matching users for {username}"},
+#             #         status=status.HTTP_204_NO_CONTENT,
+#             #     )
+#             # serializer = UserModelSerializer(users, many=True)
+#             # return JsonResponse(
+#             #     data=serializer.data, safe=False, status=status.HTTP_200_OK
+#             # )
+#             return JsonResponse(
+#                 {"data":"Not"}, status=status.HTTP_200_OK
+#             )
+# //////////////////////////////////////////////////////////////////#
+# //////////////////////////////////////////////////////////////////#
 # //////////////////////////////////////////////////////////////////#
 # class ThreadModelPostView(ListCreateAPIView):
 #     queryset = ThreadModel.objects.all()

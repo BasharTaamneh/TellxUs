@@ -3,7 +3,6 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
-from django.utils import timezone
 
 def upload_path(instance, filename):
     user_id = instance.user_id.pk

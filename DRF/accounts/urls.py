@@ -10,6 +10,7 @@ from .views import (
     GetUserFollowers,
     GetUserFollows,
     EmailStatus,
+    # Users
     # ThreadModelPostView,
     # ThreadModelDetailView,
     # MessageModelPostView,
@@ -40,6 +41,7 @@ urlpatterns = [
     path("GetUserFollows/", GetUserFollows.as_view(), name="GetUserFollows"),
     path("usersearch/", UserSearchView.as_view(), name="usersearch"),
     path("EmailStatus/", EmailStatus.as_view(), name="EmailStatus"),
+    # path("Users/", Users.as_view(), name="Users"),
     # path(
     #     "ThreadModelPostView/<int:pk>/",
     #     ThreadModelPostView.as_view(),
